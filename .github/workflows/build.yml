@@ -60,44 +60,34 @@ jobs:
       - name: Build for Termux (aarch64-android)
         working-directory: steel-cli
         run: |
-          # Remove rust-toolchain.toml to use the stable toolchain with our installed target
           rm -f rust-toolchain.toml
           
-          # Set up environment for Android cross-compilation
           export CC_aarch64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android30-clang
           export AR_aarch64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android30-clang
           
-          # Fetch dependencies first
           cargo fetch --target aarch64-linux-android
           
-          # Patch agent-browser: add missing build_playwright_binary_path fallback for Android
-          # chrome.rs already has a #[cfg(not(any(...)))] fallback for build_puppeteer_binary_path
-          # but is MISSING one for build_playwright_binary_path — Android falls through to nothing
+          # Patch agent-browser: build_playwright_binary_path is missing a catch-all fallback.
+          # build_puppeteer_binary_path already has one. Android falls through to nothing.
           echo "Patching agent-browser for Android compatibility..."
           CHROME_RS=$(find ~/.cargo/git/checkouts -path "*/agent-browser*/cli/src/native/cdp/chrome.rs" -type f | head -1)
           if [ -n "$CHROME_RS" ]; then
-            echo "Found chrome.rs at: $CHROME_RS"
-            if ! grep -q 'build_playwright_binary_path' "$CHROME_RS" | grep -q 'not(any'; then
-              if ! grep -c 'cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows"))).*build_playwright_binary_path' "$CHROME_RS" >/dev/null 2>&1; then
-                echo "Adding build_playwright_binary_path fallback for unknown platforms..."
-                cat >> "$CHROME_RS" << 'FALLBACK'
-
-#[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
-fn build_playwright_binary_path(chromium_dir: &Path) -> PathBuf {
-    chromium_dir.join("chrome-linux64/chrome")
-}
-FALLBACK
-              fi
+            echo "Found chrome.rs: $CHROME_RS"
+            if ! grep -q 'cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))' "$CHROME_RS" | grep -q 'build_playwright_binary_path'; then
+              echo '#[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]' >> "$CHROME_RS"
+              echo 'fn build_playwright_binary_path(chromium_dir: &Path) -> PathBuf {' >> "$CHROME_RS"
+              echo '    chromium_dir.join("chrome-linux64/chrome")' >> "$CHROME_RS"
+              echo '}' >> "$CHROME_RS"
+              echo "Fallback added."
+            else
+              echo "Fallback already exists, skipping."
             fi
           else
             echo "Warning: chrome.rs not found"
           fi
           
-          # Verify target is installed
           rustup target list --installed
-          
-          # Build with offline mode to prevent cargo from re-fetching
           cargo build --release --target aarch64-linux-android --frozen
 
       - name: Prepare release artifacts
