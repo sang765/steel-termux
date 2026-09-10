@@ -73,10 +73,20 @@ jobs:
           
           # Patch agent-browser to support Android target
           echo "Patching agent-browser for Android compatibility..."
-          find ~/.cargo/git/checkouts -name "*.rs" -path "*/agent-browser/*" -exec sed -i 's/#\[cfg(target_os = "linux")\]/#[cfg(any(target_os = "linux", target_os = "android"))]/g' {} \;
+          
+          # Find all .rs files in agent-browser and patch them
+          find ~/.cargo/git/checkouts -type f -name "*.rs" | while read file; do
+            if echo "$file" | grep -q "agent-browser"; then
+              if grep -q '#\[cfg(target_os = "linux")\]' "$file" 2>/dev/null; then
+                echo "Patching: $file"
+                sed -i 's/#\[cfg(target_os = "linux")\]/#[cfg(any(target_os = "linux", target_os = "android"))]/g' "$file"
+              fi
+            fi
+          done
           
           # Verify patches were applied
-          grep -r "cfg(any(target_os" ~/.cargo/git/checkouts/*/agent-browser*/cli/src/ | head -5 || echo "Warning: patches may not have been applied"
+          echo "Checking for patches..."
+          find ~/.cargo/git/checkouts -type f -name "*.rs" | xargs grep -l "cfg(any(target_os" 2>/dev/null | head -5 || echo "Warning: no patches found"
           
           # Verify target is installed
           rustup target list --installed
