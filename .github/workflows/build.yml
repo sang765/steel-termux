@@ -60,6 +60,9 @@ jobs:
       - name: Build for Termux (aarch64-android)
         working-directory: steel-cli
         run: |
+          # Remove rust-toolchain.toml to use the stable toolchain with our installed target
+          rm -f rust-toolchain.toml
+          
           # Set up environment for Android cross-compilation
           export CC_aarch64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android30-clang
           export AR_aarch64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
