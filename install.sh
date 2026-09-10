@@ -4,7 +4,7 @@ set -euo pipefail
 # Steel CLI Installer for Termux
 # Downloads the latest pre-built binary from GitHub Releases
 
-REPO="YOUR_USERNAME/steel-termux"
+REPO="sang765/steel-termux"
 INSTALL_DIR="${HOME}/.local/bin"
 
 echo "Steel CLI Installer for Termux"
