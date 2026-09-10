@@ -68,20 +68,21 @@ jobs:
           export AR_aarch64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android30-clang
           
-          # First fetch dependencies to populate cargo git checkouts
+          # Fetch dependencies first
           cargo fetch --target aarch64-linux-android
           
           # Patch agent-browser to support Android target
-          # Android's target_os is "android", not "linux", so cfg(target_os = "linux") doesn't match
           echo "Patching agent-browser for Android compatibility..."
-          find ~/.cargo/git/checkouts -name "chrome.rs" -path "*/agent-browser/*" -exec sed -i 's/#\[cfg(target_os = "linux")\]/#[cfg(any(target_os = "linux", target_os = "android"))]/g' {} \;
-          find ~/.cargo/git/checkouts -name "install.rs" -path "*/agent-browser/*" -exec sed -i 's/#\[cfg(target_os = "linux")\]/#[cfg(any(target_os = "linux", target_os = "android"))]/g' {} \;
-          find ~/.cargo/git/checkouts -name "actions.rs" -path "*/agent-browser/*" -exec sed -i 's/#\[cfg(target_os = "linux")\]/#[cfg(any(target_os = "linux", target_os = "android"))]/g' {} \;
+          find ~/.cargo/git/checkouts -name "*.rs" -path "*/agent-browser/*" -exec sed -i 's/#\[cfg(target_os = "linux")\]/#[cfg(any(target_os = "linux", target_os = "android"))]/g' {} \;
+          
+          # Verify patches were applied
+          grep -r "cfg(any(target_os" ~/.cargo/git/checkouts/*/agent-browser*/cli/src/ | head -5 || echo "Warning: patches may not have been applied"
           
           # Verify target is installed
           rustup target list --installed
           
-          cargo build --release --target aarch64-linux-android
+          # Build with offline mode to prevent cargo from re-fetching and overwriting patches
+          cargo build --release --target aarch64-linux-android --frozen
 
       - name: Prepare release artifacts
         run: |
