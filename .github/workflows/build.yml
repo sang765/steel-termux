@@ -71,27 +71,33 @@ jobs:
           # Fetch dependencies first
           cargo fetch --target aarch64-linux-android
           
-          # Patch agent-browser to support Android target
+          # Patch agent-browser: add missing build_playwright_binary_path fallback for Android
+          # chrome.rs already has a #[cfg(not(any(...)))] fallback for build_puppeteer_binary_path
+          # but is MISSING one for build_playwright_binary_path — Android falls through to nothing
           echo "Patching agent-browser for Android compatibility..."
-          
-          # Find all .rs files in agent-browser and patch them
-          find ~/.cargo/git/checkouts -type f -name "*.rs" | while read file; do
-            if echo "$file" | grep -q "agent-browser"; then
-              if grep -q '#\[cfg(target_os = "linux")\]' "$file" 2>/dev/null; then
-                echo "Patching: $file"
-                sed -i 's/#\[cfg(target_os = "linux")\]/#[cfg(any(target_os = "linux", target_os = "android"))]/g' "$file"
+          CHROME_RS=$(find ~/.cargo/git/checkouts -path "*/agent-browser*/cli/src/native/cdp/chrome.rs" -type f | head -1)
+          if [ -n "$CHROME_RS" ]; then
+            echo "Found chrome.rs at: $CHROME_RS"
+            if ! grep -q 'build_playwright_binary_path' "$CHROME_RS" | grep -q 'not(any'; then
+              if ! grep -c 'cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows"))).*build_playwright_binary_path' "$CHROME_RS" >/dev/null 2>&1; then
+                echo "Adding build_playwright_binary_path fallback for unknown platforms..."
+                cat >> "$CHROME_RS" << 'FALLBACK'
+
+#[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+fn build_playwright_binary_path(chromium_dir: &Path) -> PathBuf {
+    chromium_dir.join("chrome-linux64/chrome")
+}
+FALLBACK
               fi
             fi
-          done
-          
-          # Verify patches were applied
-          echo "Checking for patches..."
-          find ~/.cargo/git/checkouts -type f -name "*.rs" | xargs grep -l "cfg(any(target_os" 2>/dev/null | head -5 || echo "Warning: no patches found"
+          else
+            echo "Warning: chrome.rs not found"
+          fi
           
           # Verify target is installed
           rustup target list --installed
           
-          # Build with offline mode to prevent cargo from re-fetching and overwriting patches
+          # Build with offline mode to prevent cargo from re-fetching
           cargo build --release --target aarch64-linux-android --frozen
 
       - name: Prepare release artifacts
