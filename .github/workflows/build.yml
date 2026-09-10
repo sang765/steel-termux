@@ -42,7 +42,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-unknown-linux-android
+          targets: aarch64-linux-android
 
       - name: Install Android NDK
         run: |
@@ -54,16 +54,16 @@ jobs:
         working-directory: steel-cli
         run: |
           # Set up environment for Android cross-compilation
-          export CC_aarch64_unknown_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android30-clang
-          export AR_aarch64_unknown_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
-          export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_ANDROID_LINKER=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android30-clang
+          export CC_aarch64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android30-clang
+          export AR_aarch64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
+          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android30-clang
           
-          cargo build --release --target aarch64-unknown-linux-android
+          cargo build --release --target aarch64-linux-android
 
       - name: Prepare release artifacts
         run: |
           mkdir -p release
-          cp steel-cli/target/aarch64-unknown-linux-android/release/steel release/
+          cp steel-cli/target/aarch64-linux-android/release/steel release/
           chmod +x release/steel
           
           # Create tarball

@@ -7,7 +7,7 @@ Pre-built [Steel CLI](https://github.com/steel-dev/cli) binaries for [Termux](ht
 ### Quick Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/steel-termux/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/sang765/steel-termux/main/install.sh | bash
 ```
 
 ### Manual Install
@@ -47,7 +47,7 @@ If you want to build locally on Termux:
 pkg install rust
 git clone https://github.com/steel-dev/cli.git
 cd cli
-cargo build --release --target aarch64-unknown-linux-android
+cargo build --release --target aarch64-linux-android
 ```
 
 ## License
