@@ -1,0 +1,92 @@
+name: Build Steel CLI for Termux
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      steel_version:
+        description: 'Steel CLI version to build (e.g., v0.4.4)'
+        required: false
+        default: 'latest'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get Steel version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.steel_version }}" != "latest" ]; then
+            echo "version=${{ github.event.inputs.steel_version }}" >> $GITHUB_OUTPUT
+          else
+            # Get latest release tag from steel-dev/cli
+            VERSION=$(curl -s https://api.github.com/repos/steel-dev/cli/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout Steel CLI
+        uses: actions/checkout@v4
+        with:
+          repository: steel-dev/cli
+          ref: ${{ steps.version.outputs.version }}
+          path: steel-cli
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-android
+
+      - name: Install Android NDK
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y android-ndk-r26b
+          echo "NDK_HOME=/usr/lib/android-ndk-r26b" >> $GITHUB_ENV
+
+      - name: Build for Termux (aarch64-android)
+        working-directory: steel-cli
+        run: |
+          # Set up environment for Android cross-compilation
+          export CC_aarch64_unknown_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android30-clang
+          export AR_aarch64_unknown_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
+          export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_ANDROID_LINKER=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android30-clang
+          
+          cargo build --release --target aarch64-unknown-linux-android
+
+      - name: Prepare release artifacts
+        run: |
+          mkdir -p release
+          cp steel-cli/target/aarch64-unknown-linux-android/release/steel release/
+          chmod +x release/steel
+          
+          # Create tarball
+          cd release
+          tar czf ../steel-${{ steps.version.outputs.version }}-aarch64-termux.tar.gz steel
+          cd ..
+          
+          # Create checksum
+          sha256sum steel-${{ steps.version.outputs.version }}-aarch64-termux.tar.gz > steel-${{ steps.version.outputs.version }}-aarch64-termux.tar.gz.sha256
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: steel-termux
+          path: |
+            steel-${{ steps.version.outputs.version }}-aarch64-termux.tar.gz
+            steel-${{ steps.version.outputs.version }}-aarch64-termux.tar.gz.sha256
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            steel-${{ steps.version.outputs.version }}-aarch64-termux.tar.gz
+            steel-${{ steps.version.outputs.version }}-aarch64-termux.tar.gz.sha256
+          generate_release_notes: true
