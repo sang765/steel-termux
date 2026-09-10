@@ -23,8 +23,9 @@ This repository uses GitHub Actions to cross-compile Steel CLI for Android's Bio
 **TL;DR:** Official Steel binaries don't work on Termux. This repo fixes that.
 
 ## Lazy install manual? Paste this prompt to your LLM agent
-
-> Install Steel CLI for Termux. Download the binary from https://github.com/sang765/steel-termux/releases/latest and set it up.
+```
+Install Steel CLI for Termux. Download the binary from https://github.com/sang765/steel-termux/releases/latest and set it up.
+```
 
 Or just run this:
 
